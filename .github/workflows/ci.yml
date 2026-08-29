@@ -1,0 +1,150 @@
+name: CI - LLM Wiki
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  # 1. Python 版本矩阵测试
+  # ──────────────────────────────────────────────────────────────
+  test:
+    name: Python Tests (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Create test knowledge base
+        run: |
+          mkdir -p knowledge-base/entities knowledge-base/concepts knowledge-base/themes
+          echo '{"nodes": [], "edges": []}' > knowledge-base/graph.json
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=knowledge_engine --cov-report=xml --cov-report=term
+        env:
+          PYTHONPATH: .
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        if: github.event_name == 'push'
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: python-${{ matrix.python-version }}
+
+  # ──────────────────────────────────────────────────────────────
+  # 2. 知识图谱完整性验证
+  # ──────────────────────────────────────────────────────────────
+  knowledge-graph-validation:
+    name: Knowledge Graph Validation
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Validate knowledge graph
+        run: |
+          python main.py --audit \
+            --graph knowledge-base/graph.json \
+            --report output/health-report.md
+
+      - name: Check graph health
+        run: |
+          if [ -f output/health-report.md ]; then
+            echo "✅ 知识图谱健康报告已生成"
+            cat output/health-report.md
+          else
+            echo "⚠️ 无健康报告，跳过检查"
+          fi
+
+  # ──────────────────────────────────────────────────────────────
+  # 3. 集成测试（端到端流水线）
+  # ──────────────────────────────────────────────────────────────
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run end-to-end pipeline
+        run: |
+          # 使用示例文档测试完整流程
+          python main.py \
+            --input examples/sample.md \
+            --output knowledge-base/ \
+            --incremental
+
+      - name: Verify output
+        run: |
+          echo "检查生成的知识文件..."
+          ls -la knowledge-base/entities/
+          ls -la knowledge-base/concepts/
+          ls -la knowledge-base/themes/
+
+  # ──────────────────────────────────────────────────────────────
+  # 4. 代码风格检查
+  # ──────────────────────────────────────────────────────────────
+  lint:
+    name: Code Style Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install linters
+        run: |
+          pip install flake8 pylint black
+
+      - name: Run flake8
+        run: flake8 knowledge-engine/ main.py --max-line-length=100
+
+      - name: Run black check
+        run: black --check knowledge-engine/ main.py
