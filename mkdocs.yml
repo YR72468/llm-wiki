@@ -1,0 +1,21 @@
+site_name: LLM Wiki 知识引擎
+site_description: 基于知识图谱的 LLM 知识管理系统
+site_author: YR72468
+repo_url: https://github.com/YR72468/llm-wiki
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.sections
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+nav:
+  - 首页: index.md
+markdown_extensions:
+  - admonition
+  - pymdownx.superfences
+  - pymdownx.highlight

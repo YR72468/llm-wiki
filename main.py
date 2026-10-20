@@ -15,23 +15,20 @@ import glob
 from pathlib import Path
 from datetime import datetime
 
-# 确保可以导入同目录下的模块
+# 确保仓库根目录在 sys.path 中，以便导入 knowledge_engine 包
 _here = os.path.dirname(os.path.abspath(__file__))
 if _here not in sys.path:
     sys.path.insert(0, _here)
 
 os.chdir(_here)
 
-# Import from knowledge-engine subdirectory
-_knowledge_engine_dir = os.path.join(_here, 'knowledge-engine')
-if _knowledge_engine_dir not in sys.path:
-    sys.path.insert(0, _knowledge_engine_dir)
-
-from graph import KnowledgeGraph
-from extractor import KnowledgeExtractor
-from generator import PageGenerator
-from auditor import KnowledgeAuditor
-from updater import KnowledgeUpdater
+from knowledge_engine import (
+    KnowledgeGraph,
+    KnowledgeExtractor,
+    PageGenerator,
+    KnowledgeAuditor,
+    KnowledgeUpdater,
+)
 
 
 def run_full_pipeline(input_files: list, output_dir: str, incremental: bool = False):

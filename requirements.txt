@@ -1,0 +1,26 @@
+# LLM Wiki 依赖清单（CI 与本地开发通用）
+# 运行时依赖
+networkx>=2.8
+jsonschema>=4.0
+pyyaml>=6.0
+markdown>=3.4
+requests>=2.28
+click>=8.0
+
+# 测试与质量依赖
+pytest>=7.0
+pytest-cov>=4.0
+pytest-mock>=3.10
+flake8>=6.0
+black>=23.0
+isort>=5.12
+
+# 安全扫描
+safety>=2.0
+bandit>=1.7
+
+# 文档站点（Pages 部署）
+mkdocs>=1.4
+mkdocs-material>=9.0
+markdown-include>=0.8
+pygments>=2.15

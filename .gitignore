@@ -9,15 +9,22 @@ venv/
 .venv/
 ENV/
 
-# Poetry
-poetry.lock
-
-# pytest
+# pytest / lint
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
 .tox/
 .nox/
+.ruff_cache/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# Docs (mkdocs build output)
+site/
 
 # IDE
 .vscode/

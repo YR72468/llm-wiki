@@ -1,4 +1,7 @@
-name: Deploy - LLM Wiki
+# LLM Wiki 部署工作流 - GitHub Pages
+# 通过 GitHub Pages 发布知识库文档站点
+
+name: LLM Wiki Deploy
 
 on:
   push:
@@ -10,117 +13,42 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
-  # ──────────────────────────────────────────────────────────────
-  # 1. 构建知识图谱
-  # ──────────────────────────────────────────────────────────────
-  build-knowledge:
-    name: Build Knowledge Graph
+  build-and-deploy:
+    name: Build and Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-
-      - name: Process all documents
-        run: |
-          python main.py \
-            --input examples/ \
-            --output knowledge-base/ \
-            --incremental
-
-      - name: Generate health report
-        run: |
-          python main.py \
-            --audit \
-            --graph knowledge-base/graph.json \
-            --report output/health-report.md
-
-      - name: Upload knowledge base
-        uses: actions/upload-artifact@v4
-        with:
-          name: knowledge-base
-          path: knowledge-base/
-          retention-days: 7
-
-  # ──────────────────────────────────────────────────────────────
-  # 2. 生成静态文档站点
-  # ──────────────────────────────────────────────────────────────
-  build-docs:
-    name: Build Documentation Site
-    runs-on: ubuntu-latest
-    needs: build-knowledge
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download knowledge base
-        uses: actions/download-artifact@v4
-        with:
-          name: knowledge-base
-          path: knowledge-base/
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-
-      - name: Generate documentation
-        run: |
-          # 根据知识图谱生成 HTML 文档
-          python -c "
-          import json
-          from pathlib import Path
-          
-          with open('knowledge-base/graph.json') as f:
-              graph = json.load(f)
-          
-          print(f'知识图谱包含 {len(graph.get(\"nodes\", []))} 个节点')
-          print(f'关系数量: {len(graph.get(\"edges\", []))}')
-          "
-
-      - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docs
-          path: docs/
-          retention-days: 7
-
-  # ──────────────────────────────────────────────────────────────
-  # 3. 部署到 GitHub Pages
-  # ──────────────────────────────────────────────────────────────
-  deploy-pages:
-    name: Deploy to GitHub Pages
-    runs-on: ubuntu-latest
-    needs: build-docs
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download docs
-        uses: actions/download-artifact@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          name: docs
-          path: docs/
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install mkdocs mkdocs-material markdown-include pygments networkx jsonschema
+
+      - name: Build MkDocs site
+        run: mkdocs build --strict
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v4
 
-      - name: Upload to Pages
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/
+          path: './site'
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v3
